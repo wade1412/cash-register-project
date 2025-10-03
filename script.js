@@ -31,122 +31,102 @@ const changeDue = document.getElementById("change-due");
 const totalDrawer = document.getElementById("total-drawer");
 const cashInDrawer = document.getElementById("cash-in-drawer");
 
-const toCents = (num) => Math.round(Number(num) * 100);
-const centsToDisplay = (cents) =>
-  parseFloat((cents / 100).toFixed(2)).toString();
+const toCents = (num) => Math.round(num * 100);
+const toDollars = (cents) => (cents / 100).toFixed(2);
 
-const calculateTotal = (arr) => {
-  return arr
-    .reduce((acc, el) => {
-      return acc + el[1];
-    }, 0)
-    .toFixed(2);
-};
+const sumCid = (drawer) =>
+  drawer.reduce((acc, [, value]) => acc + toCents(value), 0);
 
-const formatName = (str) => {
-  str = str.toLowerCase();
-  if (str.charAt(str.length - 1) === "y") {
-    str = str.replace("y", "ie");
+const formatChangeString = (status, change) => {
+  if (status === "NO_CHANGE") {
+    return "No change due - customer paid with exact cash";
   }
-  if (str === "one hundred") {
-    str = "hundred";
+  if (status === "INSUFFICIENT_FUNDS") {
+    return "Status: INSUFFICIENT_FUNDS";
   }
-  str = str + "s";
-  return str.charAt(0).toUpperCase() + str.slice(1);
-};
-
-const formatCashInDrawer = (arr) => {
-  return arr.map(([name, value]) => [formatName(name), value]);
-};
-
-const renderMoneyArrToHtml = (arr, htmlEl) => {
-  htmlEl.innerHTML = arr
-    .map(([name, value]) => `<p>${name}: $${value}</p>`)
-    .join(``);
-};
-
-const renderDrawerAmount = (arr, htmlEl) => {
-  const formatedArr = formatCashInDrawer(arr);
-  renderMoneyArrToHtml(formatedArr, htmlEl);
-};
-
-const renderChangeDueStatus = (change, drawerCash) => {
-  const totalChange = calculateTotal(change);
-  const totalDrawerCash = calculateTotal(drawerCash);
-  if (totalDrawerCash > totalChange) {
-    drawerStatus.innerHTML = `<p>Status: OPEN</p>`;
-  } else if (totalDrawerCash === totalChange) {
-    drawerStatus.innerHTML = `<p>Status: CLOSED</p>`;
-  } else if (totalDrawerCash < totalChange) {
-    changeDue.innerHTML = `<p>Status: INSUFFICIENT_FUNDS</p>`;
-  }
-};
-
-const showChangeDue = (msg) => {
-  changeDue.innerHTML = `<p>${msg}</p>`;
-};
-
-const inputValidation = (input) => {
-  if (parseFloat(input) < price) {
-    alert("Customer does not have enough money to purchase the item");
-    return false;
-  } else if (parseFloat(input) === price) {
-    showChangeDue("No change due - customer paid with exact cash");
-    return false;
-  }
-  return true;
-};
-
-const calculateChangeNeeded = (cashGiven, valuesObj) => {
-  let neededChange = (parseFloat(cashGiven) - price).toFixed(2);
-  let changeObj = {};
-  for (let i = Object.values(valuesObj).length - 1; i >= 0; i--) {
-    while (neededChange >= Object.values(valuesObj)[i]) {
-      neededChange = (neededChange - Object.values(valuesObj)[i]).toFixed(2);
-      changeObj[Object.keys(valuesObj)[i]]
-        ? changeObj[Object.keys(valuesObj)[i]]++
-        : (changeObj[Object.keys(valuesObj)[i]] = 1);
-    }
-    if (changeObj[Object.keys(valuesObj)[i]]) {
-      changeObj[Object.keys(valuesObj)[i]] *= Object.values(valuesObj)[i];
-    }
-  }
-  return Object.entries(changeObj);
-};
-
-const calculateRemainingMoney = (moneyNeededArr, currentMoneyArr) => {
-  return currentMoneyArr.map(([name, value]) => {
-    const match = moneyNeededArr.find(([n]) => n === name);
-    if (match) {
-      const [, amountToSubtract] = match;
-      return [name, value - amountToSubtract];
-    }
-    return [name, value];
+  let parts = [`Status: ${status}`];
+  change.forEach(([name, amt]) => {
+    parts.push(`${name}: $${amt}`);
   });
+  return parts.join(" ");
 };
 
-const inputToChange = (input) => {
-  if (!inputValidation(parseFloat(input))) {
+const computeChange = (price, cash, drawer) => {
+  let changeDue = toCents(cash) - toCents(price);
+  const totalDrawer = sumCid(drawer);
+
+  if (changeDue < 0) return { status: "INSUFFICIENT_FUNDS", change: [] };
+  if (changeDue === 0) return { status: "NO_CHANGE", change: [] };
+  if (changeDue > totalDrawer)
+    return { status: "INSUFFICIENT_FUNDS", change: [] };
+
+  if (changeDue === totalDrawer) {
+    return { status: "CLOSED", change: drawer.slice().reverse() };
+  }
+
+  let changeArr = [];
+  let drawerCopy = drawer.map(([n, a]) => [n, toCents(a)]);
+
+  for (let [name, value] of DENOMS) {
+    let take = 0;
+    let idx = drawerCopy.findIndex((d) => d[0] === name);
+    while (changeDue >= value && drawerCopy[idx][1] >= value) {
+      changeDue -= value;
+      drawerCopy[idx][1] -= value;
+      take += value;
+    }
+    if (take > 0) {
+      changeArr.push([name, (take / 100).toFixed(2).replace(/\.00$/, "")]);
+    }
+  }
+
+  if (changeDue > 0) {
+    return { status: "INSUFFICIENT_FUNDS", change: [] };
+  }
+  return { status: "OPEN", change: changeArr };
+};
+
+const updateDrawerView = () => {
+  totalDrawer.innerText = `Total: $${(sumCid(cid) / 100).toFixed(2)}`;
+  cashInDrawer.innerHTML = cid
+    .map(([name, amt]) => `<p>${name}: $${amt}</p>`)
+    .join("");
+};
+
+const handlePurchase = () => {
+  const cash = parseFloat(customerCashInput.value);
+  if (isNaN(cash)) {
+    alert("Please enter a valid cash amount");
     return;
   }
-  const neededChange = calculateChangeNeeded(
-    parseFloat(input),
-    currencyUnitValues
-  );
-  const remainingDrawerMoney = calculateRemainingMoney(neededChange, cid);
-  renderMoneyArrToHtml(neededChange, changeDue);
-  renderChangeDueStatus(neededChange, cid);
-  renderDrawerAmount(remainingDrawerMoney, cashInDrawer);
-  totalDrawer.innerText = `Total: $${calculateTotal(remainingDrawerMoney)}`;
+
+  if (cash < price) {
+    alert("Customer does not have enough money to purchase the item");
+    return;
+  }
+
+  const result = computeChange(price, cash, cid);
+
+  changeDue.innerText = formatChangeString(result.status, result.change);
+
+  if (result.status === "OPEN") {
+    result.change.forEach(([name, amt]) => {
+      const idx = cid.findIndex((c) => c[0] === name);
+      if (idx > -1) {
+        cid[idx][1] = parseFloat((cid[idx][1] - amt).toFixed(2));
+      }
+    });
+    updateDrawerView();
+  }
+  if (result.status === "CLOSED") {
+    cid = cid.map(([n]) => [n, 0]);
+    updateDrawerView();
+  }
 };
 
 window.onload = () => {
   itemPrice.innerText = `Item Price: $${price}`;
-  totalDrawer.innerText = `Total: $${calculateTotal(cid)}`;
-  renderDrawerAmount(cid, cashInDrawer);
+  updateDrawerView();
 };
 
-purchaseBtn.addEventListener("click", () => {
-  let cashInput = customerCashInput.value;
-  inputToChange(cashInput);
-});
+purchaseBtn.addEventListener("click", handlePurchase);

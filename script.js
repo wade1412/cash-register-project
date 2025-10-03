@@ -53,15 +53,16 @@ const formatChangeString = (status, change) => {
 
 const computeChange = (price, cash, drawer) => {
   let changeDue = toCents(cash) - toCents(price);
-  const totalDrawer = sumCid(drawer);
+  const sumCashDrawer = sumCid(drawer);
 
   if (changeDue < 0) return { status: "INSUFFICIENT_FUNDS", change: [] };
   if (changeDue === 0) return { status: "NO_CHANGE", change: [] };
-  if (changeDue > totalDrawer)
+  if (changeDue > sumCashDrawer)
     return { status: "INSUFFICIENT_FUNDS", change: [] };
 
-  if (changeDue === totalDrawer) {
-    return { status: "CLOSED", change: drawer.slice().reverse() };
+  if (changeDue === sumCashDrawer) {
+    let changeArr = drawer.filter(([_, amt]) => amt > 0);
+    return { status: "CLOSED", change: changeArr };
   }
 
   let changeArr = [];

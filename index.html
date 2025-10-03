@@ -14,22 +14,47 @@
   </head>
 
   <body>
-    <h1>Cash Register Project</h1>
-    <div class="container">
-      <p id="drawer-status"></p>
-      <div class="change" id="change-due"></div>
+    <main class="container" role="main" aria-labelledby="app-title">
+      <header>
+        <h1 id="app-title">Cash Register</h1>
+      </header>
 
-      <div class="input-div">
-        <p id="item-price"></p>
-        <label for="cash">Enter cash from customer:</label>
-        <input id="cash" type="number" class="input" />
-        <button class="button" id="purchase-btn">Purchase</button>
-      </div>
-      <div class="cash-div">
-        <p id="total-drawer"></p>
-        <div id="cash-in-drawer"></div>
-      </div>
-    </div>
+      <section class="card">
+        <p id="item-price" aria-live="polite">Item Price: $0.00</p>
+      </section>
+
+      <section class="card input-card" aria-labelledby="cash-label">
+        <label id="cash-label" for="cash">Customer cash</label>
+
+        <input
+          id="cash"
+          name="cash"
+          type="number"
+          step="0.01"
+          inputmode="decimal"
+          placeholder="Enter cash received"
+        />
+        <div class="button-div" role="group" aria-label="purchase actions">
+          <button id="purchase-btn" type="button" class="button">
+            Purchase
+          </button>
+        </div>
+      </section>
+
+      <section class="card">
+        <p id="change-due" aria-live="polite" class="result">
+          Change information will appear here
+        </p>
+        <p id="drawer-status" class="muted" aria-hidden="false"></p>
+      </section>
+
+      <section class="card drawer" aria-labelledby="drawer-title">
+        <h2 id="drawer-title" class="muted">Cash in Drawer</h2>
+        <p id="total-drawer" class="muted">Total: $0.00</p>
+        <div id="cash-in-drawer" aria-live="polite" class="drawer-list"></div>
+      </section>
+    </main>
+
+    <script src="./script.js"></script>
   </body>
-  <script type="module" src="./script.js"></script>
 </html>

@@ -24,7 +24,8 @@ const currencyUnitValues = {
 };
 
 const itemPrice = document.getElementById("item-price");
-const customerCash = document.getElementById("cash");
+const drawerStatus = document.getElementById("drawer-status");
+const customerCashInput = document.getElementById("cash");
 const purchaseBtn = document.getElementById("purchase-btn");
 const changeDue = document.getElementById("change-due");
 const totalDrawer = document.getElementById("total-drawer");
@@ -54,30 +55,46 @@ const formatCashInDrawer = (arr) => {
   return arr.map(([name, value]) => [formatName(name), value]);
 };
 
-const renderCashAmount = (arr, htmlEl) => {
-  const formatedArr = formatCashInDrawer(arr);
-  htmlEl.innerHTML = formatedArr
+const renderMoneyArrToHtml = (arr, htmlEl) => {
+  htmlEl.innerHTML = arr
     .map(([name, value]) => `<p>${name}: $${value}</p>`)
     .join(``);
 };
 
+const renderDrawerAmount = (arr, htmlEl) => {
+  const formatedArr = formatCashInDrawer(arr);
+  renderMoneyArrToHtml(formatedArr, htmlEl);
+};
+
+const renderChangeDueStatus = (change, drawerCash) => {
+  const totalChange = calculateTotal(change);
+  const totalDrawerCash = calculateTotal(drawerCash);
+  if (totalDrawerCash > totalChange) {
+    drawerStatus.innerHTML = `<p>Status: OPEN</p>`;
+  } else if (totalDrawerCash === totalChange) {
+    drawerStatus.innerHTML = `<p>Status: CLOSED</p>`;
+  } else if (totalDrawerCash < totalChange) {
+    drawerStatus.innerHTML = `<p>Status: INSUFFICIENT_FUNDS</p>`;
+  }
+};
+
 const showChangeDue = (msg) => {
-  changeDue.innerText = `${msg}`;
+  changeDue.innerHTML = `<p>${msg}</p>`;
 };
 
 const inputValidation = (input) => {
-  if (parseInt(input) < price) {
+  if (parseFloat(input) < price) {
     alert("Customer does not have enough money to purchase the item");
     return false;
-  } else if (parseInt(input) == price) {
-    showChangeDue(`No change due - customer paid with exact cash`);
+  } else if (parseFloat(input) === price) {
+    showChangeDue("No change due - customer paid with exact cash");
     return false;
   }
   return true;
 };
 
 const calculateChangeNeeded = (cashGiven, valuesObj) => {
-  let neededChange = (parseInt(cashGiven) - price).toFixed(2);
+  let neededChange = (parseFloat(cashGiven) - price).toFixed(2);
   let changeObj = {};
   for (let i = Object.values(valuesObj).length - 1; i >= 0; i--) {
     while (neededChange >= Object.values(valuesObj)[i]) {
@@ -105,16 +122,27 @@ const calculateRemainingMoney = (moneyNeededArr, currentMoneyArr) => {
 };
 
 const inputToChange = (input) => {
-  if (!inputValidation(input)) {
+  if (!inputValidation(parseFloat(input))) {
     return;
   }
-  const neededChange = calculateChangeNeeded(input, currencyUnitValues);
+  const neededChange = calculateChangeNeeded(
+    parseFloat(input),
+    currencyUnitValues
+  );
   const remainingDrawerMoney = calculateRemainingMoney(neededChange, cid);
-  return remainingDrawerMoney;
+  renderMoneyArrToHtml(neededChange, changeDue);
+  renderChangeDueStatus(neededChange, cid);
+  renderDrawerAmount(remainingDrawerMoney, cashInDrawer);
+  totalDrawer.innerText = `Total: $${calculateTotal(remainingDrawerMoney)}`;
 };
 
 window.onload = () => {
   itemPrice.innerText = `Item Price: $${price}`;
   totalDrawer.innerText = `Total: $${calculateTotal(cid)}`;
-  renderCashAmount(cid, cashInDrawer);
+  renderDrawerAmount(cid, cashInDrawer);
 };
+
+purchaseBtn.addEventListener("click", () => {
+  let cashInput = customerCashInput.value;
+  inputToChange(cashInput);
+});
